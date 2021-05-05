@@ -74,6 +74,7 @@ def create_docset(docdir: str, docset_name: str = "igraph") -> None:
     # Create directory structure and put files in place
 
     dsdir = Path(f"{docset_name}.docset")
+    assetdir = Path("assets")
     contdir = dsdir / "Contents"
     htmldir = contdir / "Resources" / "Documents"
 
@@ -85,8 +86,8 @@ def create_docset(docdir: str, docset_name: str = "igraph") -> None:
     for file in docpath.glob("*.*"):
         shutil.copy(file, htmldir)
 
-    shutil.copy("Info.plist", contdir)
-    shutil.copy("icon.png", dsdir)
+    shutil.copy(assetdir / "Info.plist", contdir)
+    shutil.copy(assetdir / "icon.png", dsdir)
 
     # Set up SQLite index
 
@@ -192,6 +193,7 @@ def create_dash_submission(version: str, revision: int = 0) -> None:
 
     logging.info("Creating Dash submission ...")
 
+    assetdir = Path("assets")
     subdir = Path("submission")
 
     if subdir.is_dir():
@@ -200,7 +202,7 @@ def create_dash_submission(version: str, revision: int = 0) -> None:
 
     subdir.mkdir(parents=True)
 
-    with open("docset.json", "r") as fp:
+    with open(assetdir / "docset.json", "r") as fp:
         tem = Template(fp.read())
 
     with (subdir / "docset.json").open("w") as fp:
@@ -212,7 +214,7 @@ def create_dash_submission(version: str, revision: int = 0) -> None:
     shutil.move("igraph.tgz", subdir)
 
     shutil.copy("README.md", subdir)
-    shutil.copy("icon.png", subdir)
+    shutil.copy(assetdir / "icon.png", subdir)
 
 
 def main() -> None:
