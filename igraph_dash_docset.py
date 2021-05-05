@@ -67,8 +67,10 @@ def download_release() -> Optional[str]:
 
 
 def create_docset(docdir: str, docset_name: str = "igraph") -> None:
-    """
-    Creates a Dash docset from the igraph documentation in the given directory.
+    """Creates a Dash docset from the igraph documentation in the given directory.
+
+    Parameters:
+        docdir: the directory where the source documentation is located
     """
     docpath = Path(docdir)
 
@@ -189,8 +191,7 @@ def create_index_from_igraph_documentation(htmldir: Path, cur) -> None:
 
 
 def create_dash_submission(version: str, revision: int = 0) -> None:
-    """
-    Prepares a submission for https://github.com/Kapeli/Dash-User-Contributions.
+    """Prepares a submission for https://github.com/Kapeli/Dash-User-Contributions.
     The docset must be present in the current directory.
     """
 
