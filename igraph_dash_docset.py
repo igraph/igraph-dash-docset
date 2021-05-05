@@ -1,12 +1,15 @@
 #!/usr/bin/env python
 
-from glob import glob
 from pathlib import Path
 from typing import Iterable, Optional, TypeVar
 
 import logging
-import urllib.request, json, tarfile, shutil, os
+import json
+import os
+import shutil
 import sqlite3
+import tarfile
+import urllib.request
 
 
 #: Tpye variable used in generic type annotations
@@ -110,7 +113,8 @@ def create_index_from_igraph_documentation(htmldir: Path, cur) -> None:
     from lxml.html import parse, tostring, fromstring  # type: ignore
 
     cur.execute(
-        "CREATE TABLE searchIndex(id INTEGER PRIMARY KEY, name TEXT, type TEXT, path TEXT);"
+        "CREATE TABLE searchIndex(id INTEGER PRIMARY KEY, name TEXT, "
+        "type TEXT, path TEXT);"
     )
     cur.execute("CREATE UNIQUE INDEX anchor ON searchIndex (name, type, path);")
 
@@ -147,9 +151,10 @@ def create_index_from_igraph_documentation(htmldir: Path, cur) -> None:
         for a in anchors:
             name = a.attrib["name"]
             if name in docsyms:
-                (_, kind, link) = docsyms[name]
+                _, kind, link = docsyms[name]
 
-                # Parse the declaration of the symbol, if present, and refine the guess about its type.
+                # Parse the declaration of the symbol, if present, and refine
+                # the guess about its type.
                 pre = a.find("../../../../..//pre")
                 if pre is not None:
                     code = pre.text_content().strip()
