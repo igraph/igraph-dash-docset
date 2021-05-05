@@ -1,33 +1,56 @@
 #!/usr/bin/env python
 
+from typing import Iterable, Optional, TypeVar
+
+import logging
 import urllib.request, json, tarfile, shutil, os
 import sqlite3
 
 
-def download_release():
+#: Tpye variable used in generic type annotations
+T = TypeVar("T")
+
+
+def first(it: Iterable[T], *, default: Optional[T] = None) -> Optional[T]:
+    """Returns the first item of an iterable, or a default item if the iterable
+    yields no items.
     """
-    Downloads the latest stable igraph release, and extracts the documentation to the html directory.
+    for item in it:
+        return item
+    return default
+
+
+def download_release() -> Optional[str]:
+    """Downloads the latest stable igraph release, and extracts the
+    documentation to the html directory.
+
+    Returns:
+        the version number of the downloaded release, or `None` if no release
+        was found
     """
 
-    print("Looking for latest igraph release on GitHub ...")
+    logging.info("Looking for latest igraph release on GitHub ...")
 
     with urllib.request.urlopen(
         "https://api.github.com/repos/igraph/igraph/releases"
-    ) as url:
-        data = json.loads(url.read().decode())
+    ) as response:
+        data = json.load(response)
 
-    for entry in data:
-        if not entry["prerelease"] and not entry["draft"]:
-            release = entry
-            break
+    release = first(
+        entry for entry in data if not entry["prerelease"] and not entry["draft"]
+    )
+    if not release:
+        logging.error("No releases found on GitHub; this is probably a bug.")
+        return None
 
-    print("Found version %s. Downloading ..." % release["tag_name"])
+    version = release["tag_name"]
+    logging.info(f"Found version {version}. Downloading ...")
 
     tarball = release["assets"][0]["browser_download_url"]
     stream = urllib.request.urlopen(tarball)
     tarfile.open(fileobj=stream, mode="r:gz").extractall()
 
-    srcdir = "igraph-" + release["tag_name"]
+    srcdir = f"igraph-{version}"
 
     if os.path.isdir("html"):
         shutil.rmtree("html")
@@ -35,19 +58,19 @@ def download_release():
     shutil.move(os.path.join(srcdir, "doc", "html"), ".")
     shutil.rmtree(srcdir)
 
-    return release["tag_name"]
+    return version
 
 
-def create_docset(docdir, docset_name="igraph"):
+def create_docset(docdir, docset_name: str = "igraph") -> None:
     """
     Creates a Dash docset from the igraph documentation in the given directory.
     """
 
     from glob import glob
-    from bs4 import BeautifulSoup
-    from lxml.html import parse, tostring, fromstring
+    from bs4 import BeautifulSoup  # type: ignore
+    from lxml.html import parse, tostring, fromstring  # type: ignore
 
-    print("Creating docset ...")
+    logging.info("Creating docset ...")
 
     # Create directory structure and put files in place
 
@@ -56,7 +79,7 @@ def create_docset(docdir, docset_name="igraph"):
     htmldir = os.path.join(contdir, "Resources", "Documents")
 
     if os.path.isdir(dsdir):
-        print("Warning: Deleting existing docset.")
+        logging.warning("Warning: Deleting existing docset.")
         shutil.rmtree(dsdir)
 
     os.makedirs(htmldir)
@@ -148,7 +171,7 @@ def create_docset(docdir, docset_name="igraph"):
     conn.close()
 
 
-def create_dash_submission(version, revision=0):
+def create_dash_submission(version: str, revision: int = 0) -> None:
     """
     Prepares a submission for https://github.com/Kapeli/Dash-User-Contributions.
     The docset must be present in the current directory.
@@ -156,12 +179,12 @@ def create_dash_submission(version, revision=0):
 
     from string import Template
 
-    print("Creating Dash submission ...")
+    logging.info("Creating Dash submission ...")
 
     subdir = "submission"
 
     if os.path.isdir(subdir):
-        print("Warning: Deleting existing submission directory.")
+        logging.warning("Warning: Deleting existing submission directory.")
         shutil.rmtree(subdir)
 
     os.mkdir(subdir)
@@ -180,13 +203,20 @@ def create_dash_submission(version, revision=0):
     shutil.copy("icon.png", subdir)
 
 
-if __name__ == "__main__":
-
+def main() -> None:
+    logging.basicConfig(format="%(message)s", level=logging.INFO)
     os.chdir(os.path.dirname(os.path.realpath(__file__)))
 
     version = download_release()
+    if version is None:
+        return
+
     create_docset("html")
     shutil.rmtree("html")
     create_dash_submission(version)
 
-    print("Done!")
+    logging.info("Done!")
+
+
+if __name__ == "__main__":
+    main()
