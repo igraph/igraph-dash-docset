@@ -57,7 +57,7 @@ def download_release() -> Optional[str]:
     if htmldir.is_dir():
         shutil.rmtree(htmldir)
 
-    shutil.move(srcdir / "doc" / "html", ".")
+    shutil.move(str(srcdir / "doc" / "html"), ".")
     shutil.rmtree(srcdir)
 
     return version
