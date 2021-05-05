@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 from glob import glob
+from pathlib import Path
 from typing import Iterable, Optional, TypeVar
 
 import logging
@@ -51,49 +52,51 @@ def download_release() -> Optional[str]:
     with urllib.request.urlopen(tarball) as stream:
         tarfile.open(fileobj=stream, mode="r:gz").extractall()
 
-    srcdir = f"igraph-{version}"
+    srcdir = Path(f"igraph-{version}")
+    htmldir = Path("html")
+    if htmldir.is_dir():
+        shutil.rmtree(htmldir)
 
-    if os.path.isdir("html"):
-        shutil.rmtree("html")
-
-    shutil.move(os.path.join(srcdir, "doc", "html"), ".")
+    shutil.move(srcdir / "doc" / "html", ".")
     shutil.rmtree(srcdir)
 
     return version
 
 
-def create_docset(docdir, docset_name: str = "igraph") -> None:
+def create_docset(docdir: str, docset_name: str = "igraph") -> None:
     """
     Creates a Dash docset from the igraph documentation in the given directory.
     """
+    docpath = Path(docdir)
+
     logging.info("Creating docset ...")
 
     # Create directory structure and put files in place
 
-    dsdir = docset_name + ".docset"
-    contdir = os.path.join(dsdir, "Contents")
-    htmldir = os.path.join(contdir, "Resources", "Documents")
+    dsdir = Path(f"{docset_name}.docset")
+    contdir = dsdir / "Contents"
+    htmldir = contdir / "Resources" / "Documents"
 
-    if os.path.isdir(dsdir):
+    if dsdir.is_dir():
         logging.warning("Warning: Deleting existing docset.")
         shutil.rmtree(dsdir)
 
-    os.makedirs(htmldir)
-    for file in glob(os.path.join(docdir, "*.*")):
+    htmldir.mkdir(parents=True, exist_ok=True)
+    for file in docpath.glob("*.*"):
         shutil.copy(file, htmldir)
 
-    shutil.copy("Info.plist", os.path.join(contdir, "Info.plist"))
-    shutil.copy("icon.png", os.path.join(dsdir, "icon.png"))
+    shutil.copy("Info.plist", contdir)
+    shutil.copy("icon.png", dsdir)
 
     # Set up SQLite index
 
-    with sqlite3.connect(os.path.join(contdir, "Resources", "docSet.dsidx")) as conn:
+    with sqlite3.connect(contdir / "Resources" / "docSet.dsidx") as conn:
         cur = conn.cursor()
-        parse_igraph_documentation(htmldir, cur)
+        create_index_from_igraph_documentation(htmldir, cur)
         conn.commit()
 
 
-def parse_igraph_documentation(htmldir: str, cur) -> None:
+def create_index_from_igraph_documentation(htmldir: Path, cur) -> None:
     """Parses igraph's HTML documentation from the given directory and inserts
     approriate index entries into a freshly created SQLite3 database in Dash
     format.
@@ -113,7 +116,7 @@ def parse_igraph_documentation(htmldir: str, cur) -> None:
     # Parse the index page from the igraph docs to find symbols
     # Results will be stored into the docsysm dictionary
 
-    with open(os.path.join(htmldir, "ix01.html")) as fp:
+    with (htmldir / "ix01.html").open() as fp:
         page = fp.read()
 
     soup = BeautifulSoup(page, features="lxml")
@@ -137,8 +140,8 @@ def parse_igraph_documentation(htmldir: str, cur) -> None:
     # Update HTML files with information on which symbols they document
     # Also refine symbol type guesses
 
-    for file in glob(os.path.join(htmldir, "igraph-*.html")):
-        tree = parse(file)
+    for file in htmldir.glob("igraph-*.html"):
+        tree = parse(str(file))
         anchors = tree.findall("//a[@name]")
         for a in anchors:
             name = a.attrib["name"]
@@ -167,7 +170,7 @@ def parse_igraph_documentation(htmldir: str, cur) -> None:
                     ),
                 )
 
-        with open(file, "bw") as htmlfile:
+        with file.open("bw") as htmlfile:
             htmlfile.write(tostring(tree))
 
     # Insert symbols into index
@@ -189,18 +192,18 @@ def create_dash_submission(version: str, revision: int = 0) -> None:
 
     logging.info("Creating Dash submission ...")
 
-    subdir = "submission"
+    subdir = Path("submission")
 
-    if os.path.isdir(subdir):
+    if subdir.is_dir():
         logging.warning("Warning: Deleting existing submission directory.")
         shutil.rmtree(subdir)
 
-    os.mkdir(subdir)
+    subdir.mkdir(parents=True)
 
     with open("docset.json", "r") as fp:
         tem = Template(fp.read())
 
-    with open(os.path.join(subdir, "docset.json"), "w") as fp:
+    with (subdir / "docset.json").open("w") as fp:
         fp.write(tem.substitute(version=version, revision=revision))
 
     with tarfile.open("igraph.tgz", "w:gz") as tar:
