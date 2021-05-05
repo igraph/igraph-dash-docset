@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+from glob import glob
 from typing import Iterable, Optional, TypeVar
 
 import logging
@@ -47,8 +48,8 @@ def download_release() -> Optional[str]:
     logging.info(f"Found version {version}. Downloading ...")
 
     tarball = release["assets"][0]["browser_download_url"]
-    stream = urllib.request.urlopen(tarball)
-    tarfile.open(fileobj=stream, mode="r:gz").extractall()
+    with urllib.request.urlopen(tarball) as stream:
+        tarfile.open(fileobj=stream, mode="r:gz").extractall()
 
     srcdir = f"igraph-{version}"
 
@@ -65,11 +66,6 @@ def create_docset(docdir, docset_name: str = "igraph") -> None:
     """
     Creates a Dash docset from the igraph documentation in the given directory.
     """
-
-    from glob import glob
-    from bs4 import BeautifulSoup  # type: ignore
-    from lxml.html import parse, tostring, fromstring  # type: ignore
-
     logging.info("Creating docset ...")
 
     # Create directory structure and put files in place
@@ -91,8 +87,23 @@ def create_docset(docdir, docset_name: str = "igraph") -> None:
 
     # Set up SQLite index
 
-    conn = sqlite3.connect(os.path.join(contdir, "Resources", "docSet.dsidx"))
-    cur = conn.cursor()
+    with sqlite3.connect(os.path.join(contdir, "Resources", "docSet.dsidx")) as conn:
+        cur = conn.cursor()
+        parse_igraph_documentation(htmldir, cur)
+        conn.commit()
+
+
+def parse_igraph_documentation(htmldir: str, cur) -> None:
+    """Parses igraph's HTML documentation from the given directory and inserts
+    approriate index entries into a freshly created SQLite3 database in Dash
+    format.
+
+    Parameters:
+        htmldir: the folder in which igraph's HTML documentation is to be found
+        cur: a database cursor used to execute SQL statements
+    """
+    from bs4 import BeautifulSoup  # type: ignore
+    from lxml.html import parse, tostring, fromstring  # type: ignore
 
     cur.execute(
         "CREATE TABLE searchIndex(id INTEGER PRIMARY KEY, name TEXT, type TEXT, path TEXT);"
@@ -102,7 +113,8 @@ def create_docset(docdir, docset_name: str = "igraph") -> None:
     # Parse the index page from the igraph docs to find symbols
     # Results will be stored into the docsysm dictionary
 
-    page = open(os.path.join(htmldir, "ix01.html")).read()
+    with open(os.path.join(htmldir, "ix01.html")) as fp:
+        page = fp.read()
 
     soup = BeautifulSoup(page, features="lxml")
 
@@ -159,16 +171,12 @@ def create_docset(docdir, docset_name: str = "igraph") -> None:
             htmlfile.write(tostring(tree))
 
     # Insert symbols into index
-
     for triplet in docsyms.values():
         cur.execute(
             "INSERT OR IGNORE INTO searchIndex(name, type, path) VALUES (?,?,?)",
             triplet,
         )
         # print('name: %s, kind: %s, link: %s' % triplet)
-
-    conn.commit()
-    conn.close()
 
 
 def create_dash_submission(version: str, revision: int = 0) -> None:
@@ -189,10 +197,11 @@ def create_dash_submission(version: str, revision: int = 0) -> None:
 
     os.mkdir(subdir)
 
-    tem = Template(open("docset.json", "r").read())
-    open(os.path.join(subdir, "docset.json"), "w").write(
-        tem.substitute(version=version, revision=revision)
-    )
+    with open("docset.json", "r") as fp:
+        tem = Template(fp.read())
+
+    with open(os.path.join(subdir, "docset.json"), "w") as fp:
+        fp.write(tem.substitute(version=version, revision=revision))
 
     with tarfile.open("igraph.tgz", "w:gz") as tar:
         tar.add("igraph.docset")
