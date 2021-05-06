@@ -8,6 +8,7 @@ import json
 import os
 import shutil
 import sqlite3
+import re
 import tarfile
 import urllib.request
 
@@ -145,10 +146,35 @@ def create_index_from_igraph_documentation(htmldir: Path, cur) -> None:
         docsyms[name] = (name, kind, link)
 
     # Update HTML files with information on which symbols they document
-    # Also refine symbol type guesses
+    # Also refine symbol type guesses and add Sections/Guides
 
     for file in htmldir.glob("igraph-*.html"):
         tree = parse(str(file))
+
+        # Add sections / guides
+        title = tree.find("//h1[@class='title']")
+        if title is not None:
+            a = first(title.getchildren())
+            name = re.sub(r'^.*?\.\s*', '', title.text_content().strip())
+            if name in ["Installation", "Introduction", "Tutorial"]:
+                kind = "Guide"
+            else:
+                kind = "Section"
+            link = file.name + '#' + a.attrib['name']
+
+            title.insert(
+                title.index(a) + 1,
+                fromstring(
+                    "<a name='//apple_ref/cpp/%s/%s' class='dashAnchor' />"
+                    % (kind, name)
+                )
+            )
+
+            cur.execute(
+                "INSERT OR IGNORE INTO searchIndex(name, type, path) VALUES (?,?,?)",
+                (name, kind, link),
+            )
+
         anchors = tree.findall("//a[@name]")
         for a in anchors:
             name = a.attrib["name"]
