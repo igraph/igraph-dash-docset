@@ -156,19 +156,25 @@ def create_index_from_igraph_documentation(htmldir: Path, cur) -> None:
         title = tree.find("//h1[@class='title']")
         if title is not None:
             a = first(title.getchildren())
-            name = re.sub(r'^.*?\.\s*', '', title.text_content().strip())
+            title_string = re.sub(r"^.*?\.\s*", "", title.text_content().strip())
+            name = title_string
             if name in ["Installation", "Introduction", "Tutorial"]:
                 kind = "Guide"
             else:
                 kind = "Section"
-            link = file.name + '#' + a.attrib['name']
+            link = (
+                "<dash_entry_titleDescription=igraph>"
+                + file.name
+                + "#"
+                + a.attrib["name"]
+            )
 
             title.insert(
                 title.index(a) + 1,
                 fromstring(
                     "<a name='//apple_ref/cpp/%s/%s' class='dashAnchor' />"
                     % (kind, name)
-                )
+                ),
             )
 
             cur.execute(
@@ -181,6 +187,13 @@ def create_index_from_igraph_documentation(htmldir: Path, cur) -> None:
             name = a.attrib["name"]
             if name in docsyms:
                 _, kind, link = docsyms[name]
+
+                if title is not None:
+                    link = (
+                        "<dash_entry_titleDescription=%s>"
+                        % urllib.request.quote(title_string)
+                        + link
+                    )
 
                 # Parse the declaration of the symbol, if present, and refine
                 # the guess about its type.
