@@ -94,6 +94,7 @@ def create_docset(docdir: str, docset_name: str = "igraph") -> None:
 
     shutil.copy(assetdir / "Info.plist", contdir)
     shutil.copy(assetdir / "icon.png", dsdir)
+    shutil.copy(assetdir / "icon@2x.png", dsdir)
 
     # Set up SQLite index
 
@@ -247,6 +248,7 @@ def create_dash_submission(version: str, revision: int = 0) -> None:
 
     shutil.copy("README.md", subdir)
     shutil.copy(assetdir / "icon.png", subdir)
+    shutil.copy(assetdir / "icon@2x.png", subdir)
 
 
 def main() -> None:
@@ -256,6 +258,8 @@ def main() -> None:
     version = download_release()
     if version is None:
         return
+
+    urllib.request.urlretrieve("https://raw.githubusercontent.com/igraph/igraph/master/doc/html/style.css", "html/style.css")
 
     create_docset("html")
     shutil.rmtree("html")
