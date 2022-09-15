@@ -272,8 +272,6 @@ def main() -> None:
     if version is None:
         return
 
-    urllib.request.urlretrieve("https://raw.githubusercontent.com/igraph/igraph/master/doc/html/style.css", "html/style.css")
-
     create_docset("html")
     shutil.rmtree("html")
     create_dash_submission(version)
