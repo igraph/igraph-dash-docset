@@ -11,7 +11,7 @@
 	<key>dashIndexFilePath</key>
 	<string>index.html</string>
 	<key>DashDocSetFallbackURL</key>
-	<string>https://igraph.org/c/doc/</string>
+	<string>https://igraph.org/c/html/latest/</string>
 	<key>isJavaScriptEnabled</key>
 	<true/>
 	<key>DashDocSetFamily</key>
