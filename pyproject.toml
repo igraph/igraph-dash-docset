@@ -6,8 +6,8 @@ authors = ["Szabolcs Horvat <szhorvat@gmail.com>"]
 
 [tool.poetry.dependencies]
 python = "^3.7"
-beautifulsoup4 = "^4.9.3"
-lxml = "^4.6.3"
+beautifulsoup4 = "^4.12.2"
+lxml = "^4.9.3"
 
 [tool.poetry.dev-dependencies]
 
